@@ -10,7 +10,7 @@ description: A blog about technology and stuff related
 external-image: false
 picture: assets/images/minjepark.jpg
 
-url: http://koppl.in/indigo
+url: https://raw.githubusercontent.com/mznet/blog/master/
 # your url: http://USERNAME.github.io
 
 permalink: /:title/
