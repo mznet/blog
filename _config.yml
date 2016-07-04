@@ -10,7 +10,7 @@ description: A blog about technology and stuff related
 external-image: false
 picture: assets/images/minjepark.jpg
 
-url: https://mznet.github.io/blog/
+url: https://mznet.github.io
 # your url: http://USERNAME.github.io
 
 permalink: /:title/
