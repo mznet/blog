@@ -10,7 +10,7 @@ description: A blog about technology and stuff related
 external-image: false
 picture: assets/images/minjepark.jpg
 
-url: https://raw.githubusercontent.com/mznet/blog/master/
+url: https://mznet.github.io/blog/
 # your url: http://USERNAME.github.io
 
 permalink: /:title/
@@ -26,7 +26,7 @@ highlighter: rouge
 # analytics-piwik-id: 1
 
 # if you don't want comments in your posts, set to false
-disqus: mydisqus
+# disqus: mydisqus
 
 # if you don't have any of social below, comment the line
 facebook: mzent07
