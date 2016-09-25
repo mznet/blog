@@ -1,0 +1,88 @@
+---
+title: "HashWithIndifferentAccess vs Hash"
+layout: post
+date: 2016-09-25 13:10
+image: /assets/images/markdown.jpg
+headerImage: false
+tag:
+- ruby
+- hash
+- HashWithIndifferentAccess
+blog: true
+author: minjepark
+description: rails의 HashWithIndifferentAccess와 ruby의 Hash의 차이
+---
+
+레일즈에서 뷰에서 넘긴 파라미터를 컨트롤러에서 받을 때, params 명령을 통해 받는다. title과 content라는 파리미터를 넘겼다면 params으로 뷰에서 넘긴 파라미터들을 조회할 수 있다.
+
+    {
+      "utf8"->"✓",
+      "authenticity_token" -> "token",
+      "post"-> { "title" -> "test", "content" -> "test" },
+      "commit"-> "Create Post",
+      "controller" -> "posts",
+      "action" -> "create"
+    }
+
+넘겨진 파라미터들을 위와 같은 모습일 것이다. 레일즈는 내부에서 `ActionController::Parameters`를 사용하여 파라미터를 받아, 해시의 모습으로 값을 리턴한다. params에서 원하는 값만 가져오려면 해시와 같은 방법으로 `params[:post][:title]`, `params[:post][:content]`을 사용해서 가져올 수 있다. 다만 특이한 것은 `params['post']['content']`나 `params['post']['content']`의 방법으로도 값을 가져올 수 있는 것이다. 즉 해시의 key를 `string`이나 `symbol` 둘 중 어느 것이라도 상관이 없다.
+
+우리가 알고 있던 루비에서의 해시는 이렇지 않았다. 루비 해시에서 string이나 symbol key를 만드는 방법이 다르고, string으로 만들어진 key, value를 symbol로 가져올 수 없다.
+
+    symbol 키로 해시 만들기
+
+    test = {
+      title: 'title',
+      content: 'content'
+    }
+
+    # => {:title=>"title", :content=>"content"}
+
+    string 키로 해시 만들기
+
+    test = {
+      'title' => 'title',
+      'content' => 'content'
+    }
+
+    # => { "title" => "title", "content" => "content"}
+
+    hash를 HashWithIndifferentAccess로 만들기
+    { title: 'title' }.with_indifferent_access
+    # => { "title" => "title" }
+
+생긴 모습이 비슷해서, 결과 값도 같으리라 생각하지만, 결과는 다른 hash를 만들게 되는 것이다. 굳이 string으로 만들어진 hash를 symbol로 부르고 싶다면, `symoblize_keys`나 `stringify_keys`와 같은 명령을 통해 hash의 키 값을 변형한 후에만, 가능하였다. 만약에, 해시에서 string key로 만들어진 value를 symbol key로 불러오게 되면 `nil`을 호출한다. 어떻게 params는 string과 hash 상관없이 파라미터를 불러올 수 있었을까?
+
+# HashWithIndifferentAccess
+
+레일즈는 파라미터를 받을 때, HashWithIndifferentAccess 객체를 리턴하는데, 이 때의 리턴 값이 Hash 대신에 `ActiveSupport`의 [`HashWithIndifferentAccess`](http://api.rubyonrails.org/v4.2/classes/ActiveSupport/HashWithIndifferentAccess.html)라는 레일즈 내부에서 구현한 객체를 사용하고 있다.
+
+    class HashWithIndifferentAccess < Hash
+      # Returns +true+ so that <tt>Array#extract_options!</tt> finds members of
+      # this class.
+      def extractable_options?
+        true
+      end
+
+      def with_indifferent_access
+        dup
+      end
+
+[HashWithIndifferentAccess의 소스 코드](https://github.com/rails/rails/blob/df6048407faefdc6774a8b5a02344fd4b1a734b1/activesupport/lib/active_support/hash_with_indifferent_access.rb#L167)를 열어보게 되면 HashWithIndifferentAccess가 Hash 클래스를 상속해서 만들어진 객체임을 알 수 있다. 조금 더 레일즈에 맞게, 사용하기 쉽게 Hash를 변형한 것이 HashWithIndifferentAccess임을 알 수 있다.
+
+    def convert_key(key)
+      key.kind_of?(Symbol) ? key.to_s : key
+    end
+
+HashWithIndifferentAccess의 소스 코드에서 `convert_key` 메소드를 찾아보면 key가 symbol일 경우, string으로 변환하여 저장하는 것을 볼 수 있다.
+
+    # HashWithIndifferentAccess를 Hash의 Symbol Key를 생성하는 방법으로 만들어보자
+    ActiveSupport::HashWithIndifferentAccess.new(test: 'test')
+
+    # Symbol Key를 생성하는 방법으로, HashWithIndifferentAccess를 만들었지만, String Key로 생성된다.
+    # => { 'test' => 'test' }
+
+symbol을 사용하여 hash를 만드는 것이 검색이나 메모리 사용에 있어 더 이점을 가지는데, 왜 HashWithIndifferentAccess는 string key만을 만들고 있을까? 자세한 내용은 공식 문서나 StackOverflow에서도 찾을 수 없었는데, 아마도 symbol이 메모리 사용에 있어 강점을 갖지만, [Ruby 2.2 이전에는 symbol이 GC의 대상이 되지 않았기 때문](https://www.sitepoint.com/symbol-gc-ruby-2-2/)이 아닐까 한다. 레일즈에서 `ActionController::Parameters`는 굉장히 자주 쓰이는 기능이기 때문에, GC이 되지 않는 데이터를 계속 갖고 있기엔 성능에 문제가 될 수 있기 떄문이라 생각한다.
+
+## 읽어보면 좋은 글
+* [HashWithIndifferentAccess에 관한 설명](http://codefol.io/posts/Deep-Rails-Understanding-HashWithIndifferentAccess-Understanding-the-Params-Hash)
+* [HashWithIndifferentAccess의 key를 symbol로 제안했던 google groups 스레드](https://groups.google.com/forum/#!topic/rubyonrails-core/S6tthggGYNo)
