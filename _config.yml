@@ -48,12 +48,6 @@ authors:
         bio: 루비 방랑자
         external-image: false
         picture: assets/images/minjepark.jpg
-    jamesfoster:
-        name: James Foster
-        bio: A Man who develops software with coffee
-        external-image: false
-        picture: assets/images/james.jpg
-        twitter: jamesfoster
 
 # do you want a larger site? change the option below
 # options: [normal, large] | default: normal

@@ -1,0 +1,158 @@
+---
+title: "each vs find_each"
+layout: post
+date: 2016-10-03 16:50
+image: /assets/images/markdown.jpg
+headerImage: false
+tag:
+- ruby
+- find
+- find_each
+blog: true
+author: minjepark
+description: rails의 find_each와 each의 차이
+---
+
+# each
+루비와 레일즈에서 배열이나 액티브 레코드 속의 각각의 요소들을 나타내고 처리하기 위해 `each` 메소드를 사용한다. each 메소드는 이름 그대로 '각각'의 요소를 가져온다. 레일즈에서는 주로 컨트롤러에서 가져온 데이터 콜렉션을 뷰에서 출력하기 위해 많이 사용된다. 이외에도 서비스를 운영하다 보면 발생하는 배치 작업에 많이 쓰인다. 특정 상태의 사용자를 찾아, 상태를 변경해야 하거나, 탈퇴 요청을 받은 사용자들을 탈퇴 처리를 하는 작업을 하는 경우 `rake` 작업을 생성하여 schedule에 등록하여 처리하는 경우가 많다.
+
+100만명이 넘는 사용자의 상태를 일괄적으로 변경해야 한다거나 혹은 사용자 모두에게 메일을 보내야 하는 경우라면 어떨까? each를 사용해서 모든 사용자 요소를 가져 온다면 문제가 생기지 않을까? each를 사용하게 되면 데이터 콜렉션의 모든 요소를 메모리에 올려 놓게 되는데, 서비스를 운영하는 환경의 스펙에 따라, 메모리 부족이 일어날 가능성이 있다. 이런 문제점 때문에, 대규모의 배치 작업이 있을 경우에는 each 보다는 `find_each`와 `find_in_batches`를 사용하게 된다.
+
+# find_in_batches
+`find_in_batches`는 전체 데이터 콜렉션 중에 options에 지정한 조건에 맞는 데이터를 배열로 만들어 가져오는 명령이다. options으로 지정할 수 있는 조건은, `start`와 `batch_size`가 있다. start는 전체 콜렉션에서 시작할 시점을 지정하고, batch_size는 몇 개의 데이터를 가져올 지를 지정하는데, 기본은 1000으로 설정되어 있다. 이해가 잘 되지 않는 다면 아래의 예제를 통해 알아보자.
+
+User 모델에는 10000개의 데이터가 있다고 가정하고, find_in_batches를 사용해보자.
+
+    User.all.find_in_bathces { |x| x }
+
+    # 결과
+
+    User Load (2.8ms)  SELECT  `users`.* FROM `users`   ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 1000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 2000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 3000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 4000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 5000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    ...
+
+이런 식으로 10000번까지 이어진다. `find_in_batches`는 데이터 컬렉션에서 batch_size에서 설정한 값만큼 요소들을 배열로 묶는 기능을 한다. 10000개의 데이터를 가진 User 모델은 find_in_batches에서는 1000개의 데이터 콜렉션 10개가 되는 것이다. batch_size를 500으로 설정한다면, 20개의 데이터 콜렉션이 되어 반복될 것이다. start 설정을 바꾼다면, find_in_batches의 시작점을 바꿀 수 있다. start가 500이라면 500부터 10000개의 컬렉션을 batch_size로 나누게 될 것이다.
+
+자, 그러면 find_in_batches에 묶인 값들이 정말로 배열의 모습을 갖는 지 확인하자.
+
+    User.all.find_in_batches { |x| p x.class }
+
+    # 결과
+
+    Array
+    User Load (2.8ms)  SELECT  `users`.* FROM `users`   ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    Array
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 1000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    Array
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 2000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    Array
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 3000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    Array
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 4000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    Array
+    User Load (3.1ms)  SELECT  `users`.* FROM `users`  WHERE `users`.`id` > 5000  ORDER BY `users`.`id` ASC LIMIT 1000
+    Called from:
+
+    ...
+
+정말로 배열로 묶였다.
+
+그렇다면, `find_in_batches`는 어떤 경우에 활용할 수 있을까? 위에서 설명한대로 모든 요소를 메모리에 올리는 each의 단점을 극복하기 위해 find_in_batches를 사용하여, 1000개로 쪼개어 놓고 한번 더 반복문을 돌려서 작업을 할 수 있다. 1000개씩 배치를 돌리게 되면, 최대 1000개씩의 요소만 메모리에 올리기 때문에 메모리 부족을 방지할 수 있다. 혹은 워커로 배치 작업을 돌리는 경우에 10000개의 데이터 중 5000개를 1번 워커에서 작업하고, 나머지 5000개를 2번 워커에서 작업하여 2개의 워커를 동시에 돌려 더욱 빠르게 배치를 진행할 수 있다.
+
+# find_each
+find_in_batches는 전체 데이터 콜렉션을 batch_size에서 지정한 크기만큼 묶어서 처리하게 되는데, each를 통해 작업한 배치 작업을 find_in_batches으로 변경하기 위해서는 find_in_batches 블록 안에서 batch_size의 크기대로 묶인 데이터 콜렉션을 다시 풀어서 처리해줘야 한다.
+
+    # 이런 식으로 find_in_batches 안에서 한번 더 each를 사용해서 처리 해줘야 한다
+    User.all.find_in_batches do |x|
+      x.each do |t|
+        t.update(state_code_id: 20)
+      end
+    end
+
+`find_each`를 사용하면, 이런 번거로운 작업을 피할 수 있다. find_each는 위의 코드에서 본 대로 find_in_batches의 블록 안에서 한번 더 each를 사용한 것으로 each 블록과 동일하게 배치 작업을 사용할 수 있다. 아래는 `find_each`의 코드이다.
+
+    def find_each(options = {})
+      if block_given?
+        find_in_batches(options) do |records|
+          records.each { |record| yield record }
+        end
+      else
+        enum_for :find_each, options do
+          options[:start] ? where(table[primary_key].gteq(options[:start])).size : size
+        end
+      end
+    end
+
+find_each 뒤에 블록이 주어지면, find_in_batches를 수행하고, 그 안에서 each를 수행하게 된다. each와 동일하게 배치 작업을 돌릴 수 있는 것이다. 다만, find_in_batches와 each를 번갈아가면서 사용하기 때문에, each만 사용하는 것보다는 속도가 느리다. 대신에 메모리 사용에 있어 장점이 있다. 만약 블록이 주어지지 않는다면 `Enumerator` 객체만 출력한다.
+
+# find_each와 find_in_bathces를 사용할 때 주의사항
+사실은 이 글을 쓰게 된 가장 큰 이유인데, 사용자가 원하는 검색 필터를 추가한 뒤에 검색 결과를 보여주고, 이 내용을 사용자가 보이는 순서에 맞게 csv로 변환하는 작업을 맡고 있었는데, find_each를 사용하니 csv의 순서가 내가 생각하고 있던 순서와 맞지 않는 문제가 있었다. 처음에는 검색 조건에 문제가 있는 줄 알고 찾았으나 이상이 없었고, 혹시나 find_each에 문제가 있는 것이 아닐까 하고 의심하여 문서를 뒤지던 중 알게된 사실이`find_each`와 `find_in_batches`를 사용할 때, 사용자가 임의로 설정한 정렬 기능이 수행되지 않는다는 것이었다. 더 정확하게 말하자면, find_each와 find_in_batches 안에서는 `재정렬`이 일어난다. find_in_batches의 소스 코드를 열어 보면 알 수 있는데,
+
+    def find_in_batches(options = {})
+      options.assert_valid_keys(:start, :batch_size)
+
+      relation = self
+      start = options[:start]
+      batch_size = options[:batch_size] || 1000
+
+      unless block_given?
+        return to_enum(:find_in_batches, options) do
+          total = start ? where(table[primary_key].gteq(start)).size : size
+          (total - 1).div(batch_size) + 1
+        end
+      end
+
+      if logger && (arel.orders.present? || arel.taken.present?)
+        logger.warn("Scoped order and limit are ignored, it's forced to be batch order and batch size")
+      end
+
+      relation = relation.reorder(batch_order).limit(batch_size)
+      records = start ? relation.where(table[primary_key].gteq(start)).to_a : relation.to_a
+
+      while records.any?
+        records_size = records.size
+        primary_key_offset = records.last.id
+        raise "Primary key not included in the custom select clause" unless primary_key_offset
+
+        yield records
+
+        break if records_size < batch_size
+
+        records = relation.where(table[primary_key].gt(primary_key_offset)).to_a
+      end
+    end
+
+위의 코드에서 `relation = relation.reorder(batch_order).limit(batch_size)`라는 부분을 확인할 수 있다. find_in_batches는 batch_size의 크기로 데이터를 나누게 되는데, 나눌 때 기준을 pk의 오름차순으로 삼기 때문에, pk 기준으로 데이터를 재정렬한 후에 데이터를 나누는 작업을 수행한다. 그리고 string 기반의 pk라면 find_in_batches를 사용할 수 없다.
+
+find_in_batches를 사용하면서, pk 기준으로 정렬하고 싶지 않다면 새로운 배치 메서드를 만들던지, find_in_batches를 수행하고 재정렬하는 방법 밖에 없을 것이다.
+
+## 읽어보면 좋은 글
+* [레일즈에서 어떻게 배치 작업이 동작하는가?](http://www.monkeyandcrow.com/blog/reading_rails_how_do_batched_queries_work/)
+* [find_in_batches에서 limit 도입에 대한 PR 및 논쟁](https://github.com/rails/rails/pull/5696)
+
