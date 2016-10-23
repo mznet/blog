@@ -1,7 +1,7 @@
 ---
 title: "symbol vs string"
 layout: post
-date: 2016-10-03 16:50
+date: 2016-10-16 16:50
 image: /assets/images/markdown.jpg
 headerImage: false
 tag:
