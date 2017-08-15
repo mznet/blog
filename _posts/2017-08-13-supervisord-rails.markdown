@@ -1,7 +1,7 @@
 ---
 title: supervisor로 rails 프로세스 감시하기
 layout: post
-date: 2017-06-12 01:11
+date: 2017-08-15 11:21
 image: /assets/images/markdown.jpg
 headerImage: false
 tag:
@@ -16,7 +16,7 @@ description: supervisord로 rails 프로세스가 죽지 않도록 관리해보�
 
 > Supervisor is a client/server system that allows its users to control a number of processes on UNIX-like operating systems. 
 
-Supervisor는 유닉스 환경에서 프로세스를 컨트롤 할 수 있는 툴이다. Rails를 production 환경에서 돌릴 때, puma의 메모리 누수나 알 수 없는 에러 등으로 앱이 죽는 경우가 발생할 수 있다. Supervisor를 통해서 현재 puma 프로세스의 갯수를 파악하고, 현재 가동되는 프로세스가 없거나, 갑자기 puma가 죽었을 경우에 puma를 다시 시작하도록 할 수 있다.
+Supervisor는 유닉스 환경에서 프로세스를 컨트롤 할 수 있는 툴이다. Rails를 production 환경에서 돌릴 때, puma의 메모리 누수나 알 수 없는 에러 등으로 앱이 죽는 경우가 발생할 수 있다. Supervisor를 통해서 현재 puma 프로세스의 갯수를 파악하고, 현재 가동되는 프로세스가 없거나, 갑자기 puma가 죽었을 경우에 puma를 다시 시작하도록 할 수 있다. 중단 없는 서버를 위해 Supervisor로 Rails 앱을 오랜시간 유지하는 방법을 알아보자.
 
 일단 Supervisor를 설치하여 보자. 운영체제 별로 설치하는 방법이 다를 수 있으므로 자세한 것은 Supervisor에서 제공하는 [설치 문서](http://http://supervisord.org/installing.html)를 확인해보자. 이 문서는 Ubuntu 16.04 기준으로 한다.
 
